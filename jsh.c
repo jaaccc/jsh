@@ -1,10 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define READ_BUFFER_SIZE 256
 #define TOKEN_BUFFER_SIZE 16
 #define TOKEN_DELIMITER " \t\r\n\a"
+
+int jsh_launch(char **args) {
+    pid_t pid, wpid;
+    int status;
+    pid = fork();
+    if (pid == 0) {
+        if (execvp(args[0], args) == -1)
+            perror("jsh");
+        exit(1);
+    } else if (pid < 0) {
+        perror("jsh");
+    } else {
+        do {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+    return 1;
+}
 
 char **jsh_split(char *line) {
     int buffer_size = TOKEN_BUFFER_SIZE;
