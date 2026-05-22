@@ -1,11 +1,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define READ_BUFFER_SIZE 256
 #define TOKEN_BUFFER_SIZE 16
 #define TOKEN_DELIMITER " \t\r\n\a"
+
+int jsh_cd(char **args);
+int jsh_help(char **args);
+int jsh_exit(char **args);
+
+char *builtin_list[] = {"cd", "help", "exit"};
+int (*builtin_function[])(char **) = {&jsh_cd, &jsh_help, &jsh_exit};
+int jsh_builtin_count() { return sizeof(builtin_list) / sizeof(char *); }
+
+int jsh_cd(char **args) {
+    if (args[1] == NULL)
+        fprintf(stderr, "jsh: expected argument to \"cd\"\n");
+    else if (chdir(args[1]) != 0)
+        perror("jsh");
+    return 1;
+}
+
+int jsh_help(char **args) {
+    int i;
+    printf("jaaccc's shell\n");
+    printf("type function name followed by arguments, and hit enter\n");
+    printf("the following functions are built in:\n");
+
+    for (i = 0; i < jsh_builtin_count(); i++)
+        printf("    %s\n", builtin_list[i]);
+
+    printf("use the man function for more information on each function\n");
+    return 1;
+}
+
+int jsh_exit(char **args) { return 0; }
 
 int jsh_launch(char **args) {
     pid_t pid, wpid;
