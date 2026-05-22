@@ -40,7 +40,7 @@ int jsh_help(char **args) {
 int jsh_exit(char **args) { return 0; }
 
 int jsh_launch(char **args) {
-    pid_t pid, wpid;
+    pid_t pid;
     int status;
     pid = fork();
     if (pid == 0) {
@@ -51,10 +51,23 @@ int jsh_launch(char **args) {
         perror("jsh");
     } else {
         do {
-            wpid = waitpid(pid, &status, WUNTRACED);
+            waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
     return 1;
+}
+
+int jsh_execute(char **args) {
+    int i;
+
+    if (args[0] == NULL)
+        return 1;
+
+    for (i = 0; i < jsh_builtin_count(); i++)
+        if (strcmp(args[0], builtin_list[i]) == 0)
+            return (*builtin_function[i])(args);
+
+    return jsh_launch(args);
 }
 
 char **jsh_split(char *line) {
@@ -92,7 +105,7 @@ char **jsh_split(char *line) {
 char *jsh_read(void) {
     int buffer_size = READ_BUFFER_SIZE;
     int position = 0;
-    char *buffer = malloc(sizeof(char) * buffer_size);
+    char *buffer = malloc(buffer_size);
     int character;
 
     if (!buffer) {
@@ -131,8 +144,8 @@ void jsh_loop(void) {
     do {
         printf(". ");
         line = jsh_read();
-        args = jsh_split();
-        status = jsh_execute();
+        args = jsh_split(line);
+        status = jsh_execute(args);
 
         free(line);
         free(args);
