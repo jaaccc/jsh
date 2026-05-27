@@ -116,6 +116,12 @@ char *jsh_read(void) {
     while (1) {
         character = getchar();
 
+        if (character == 127 || character == '\b') {
+            if (position > 0)
+                position--;
+            continue;
+        }
+
         if (character == EOF || character == '\n') {
             buffer[position] = '\0';
             return buffer;
@@ -152,7 +158,7 @@ void jsh_loop(void) {
     } while (status);
 }
 
-int main(int argc, char **argv) {
+int main(void) {
     jsh_loop();
 
     return 0;
