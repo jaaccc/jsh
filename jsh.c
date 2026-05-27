@@ -4,7 +4,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define READ_BUFFER_SIZE 256
 #define TOKEN_BUFFER_SIZE 16
 #define TOKEN_DELIMITER " \t\r\n\a"
 
@@ -14,7 +13,7 @@ int jsh_exit(char **args);
 
 char *builtin_list[] = {"cd", "help", "exit"};
 int (*builtin_function[])(char **) = {&jsh_cd, &jsh_help, &jsh_exit};
-int jsh_builtin_count() { return sizeof(builtin_list) / sizeof(char *); }
+int jsh_builtin_count(void) { return sizeof(builtin_list) / sizeof(char *); }
 
 int jsh_cd(char **args) {
     if (args[1] == NULL)
@@ -46,7 +45,7 @@ int jsh_launch(char **args) {
     if (pid == 0) {
         if (execvp(args[0], args) == -1)
             perror("jsh");
-        exit(1);
+        exit(EXIT_FAILURE);
     } else if (pid < 0) {
         perror("jsh");
     } else {
@@ -78,7 +77,7 @@ char **jsh_split(char *line) {
 
     if (!tokens) {
         fprintf(stderr, "jsh: allocation error\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     token = strtok(line, TOKEN_DELIMITER);
@@ -92,7 +91,7 @@ char **jsh_split(char *line) {
 
             if (!tokens) {
                 fprintf(stderr, "jsh: allocation error\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -103,43 +102,19 @@ char **jsh_split(char *line) {
 }
 
 char *jsh_read(void) {
-    int buffer_size = READ_BUFFER_SIZE;
-    int position = 0;
-    char *buffer = malloc(buffer_size);
-    int character;
+    char *line = NULL;
+    ssize_t bufsize = 0;
 
-    if (!buffer) {
-        fprintf(stderr, "jsh: allocation error\n");
-        exit(1);
-    }
-
-    while (1) {
-        character = getchar();
-
-        if (character == 127 || character == '\b') {
-            if (position > 0)
-                position--;
-            continue;
-        }
-
-        if (character == EOF || character == '\n') {
-            buffer[position] = '\0';
-            return buffer;
+    if (getline(&line, &bufsize, stdin) == -1) {
+        if (feof(stdin)) {
+            exit(EXIT_SUCCESS);
         } else {
-            buffer[position] = character;
-        }
-        position++;
-
-        if (position >= buffer_size) {
-            buffer_size += READ_BUFFER_SIZE;
-            buffer = realloc(buffer, buffer_size);
-
-            if (!buffer) {
-                fprintf(stderr, "jsh: allocation error\n");
-                exit(1);
-            }
+            perror("readline");
+            exit(EXIT_FAILURE);
         }
     }
+
+    return line;
 }
 
 void jsh_loop(void) {
@@ -149,6 +124,7 @@ void jsh_loop(void) {
 
     do {
         printf(". ");
+        fflush(stdout);
         line = jsh_read();
         args = jsh_split(line);
         status = jsh_execute(args);
